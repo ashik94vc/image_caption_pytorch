@@ -11,7 +11,7 @@ class ImagenetDataset(Dataset):
         Helper class to load dataset from h5 to create a data transform
     """
     def __init__(self, train, transform=None):
-        self.dataset = loadData('../dataset/imagenet.h5')
+        self.dataset = loadData('dataset/imagenet.h5')
         self.train = train
         self.transform = transform
         self.class_names = self.dataset['class_index']

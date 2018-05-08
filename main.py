@@ -1,5 +1,7 @@
 import torch
 
-from core.lib import loadData, loadModel
+from core.classifier import Classifier
 
-dataset = loadData('dataset/imagenet.h5')
+classifier = Classifier()
+
+classifier.train(1)

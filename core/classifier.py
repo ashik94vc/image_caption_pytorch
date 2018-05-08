@@ -8,8 +8,6 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from dataset.imagenet_dataset import ImagenetDataset
 from core.resnet import ResNet
-from core.lib import saveModel
-sys.path.append('../')
 
 
 class Classifier(object):
@@ -27,7 +25,8 @@ class Classifier(object):
             transforms.ToTensor()
         })
 
-        self.device = 'cuda' if torch.cuda_is_available() else 'cpu'
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        print("Using device %s" % self.device)
 
         train_dataset = ImagenetDataset(train=True, transform=train_transform)
         self.classes = train_dataset.class_names
@@ -48,9 +47,6 @@ class Classifier(object):
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(self.net.parameters(), 0.001, momentum=0.9, weight_decay=5e-4)
         train_loss = 0
-        acc = 0
-        correct = 0
-        total = 0
         for batch_idx, (data, target) in enumerate(self.trainloader):
             data, target = data.to(self.device), target.to(self.device)
             optimizer.zero_grad()
@@ -58,13 +54,26 @@ class Classifier(object):
             loss = criterion(outputs, target)
             loss.backward()
             optimizer.step()
-            _, predicted = outputs.max(1)
-            total += target.size(0)
             train_loss += loss.item()
-            acc = 100.*correct/total
             print(batch_idx, train_loss)
 
-        print("\nEpoch %d complete with accuracy %f " % (epoch, acc))
+        print("\nEpoch %d complete... " % epoch)
+
+    def test(self, epoch):
+        self.net.eval()
+        test_loss = 0
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for batch_idx, (data, target) in enumerate(self.testloader):
+                data, target = data.to(self.device), target.to(self.device)
+                outputs = self.net(data)
+
+                _, predicted = outputs.max(1)
+                total += target.size(0)
+                correct += predicted.eq(target).sum().item()
+        acc = 100.*correct/total
+        print("\nEpoch %d complete with test accuracy %f" % epoch,acc)
         print("Saving Model")
         state = {
             'net': self.net.state_dict(),
@@ -72,4 +81,3 @@ class Classifier(object):
             'accuracy': acc
         }
         torch.save(state, '../checkpoint/checkpoint.t7')
-
