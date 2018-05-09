@@ -57,47 +57,31 @@ ENV CUDA_ROOT /usr/local/cuda/bin
 #    cd /usr/local/cuda/samples/1_Utilities/deviceQuery && \
 #    make
 
-RUN cd /root && git clone https://github.com/Theano/libgpuarray.git && cd libgpuarray && \
-   mkdir Build && cd Build && \
-   cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr && \
-   make -j "$(nproc)" && \
-   make install
-
-RUN cd /root/libgpuarray && \
-   python3 setup.py build_ext -L /usr/lib -I /usr/include && \
-   python3 setup.py install
-
 RUN pip3 install --upgrade pip
 RUN pip3 install --upgrade six
-RUN pip3 install --upgrade --no-deps git+git://github.com/Theano/Theano.git
-RUN pip3 install --upgrade keras
+RUN pip3 install --upgrade torch
+RUN pip3 install --upgrade torchvision
 RUN pip3 install --upgrade pillow
 RUN pip3 install deepdish
 
 WORKDIR /scene_detection
 
-RUN mkdir -p /root/.keras
-
 RUN mkdir -p models
-
-ADD docker/gpu/keras.json /root/.keras/
+RUN mkdir -p checkpoint
 
 ADD core core/
 ADD dataset/imagenet.h5 dataset/imagenet.h5
+ADD dataset/imagenet_dataset.py dataset/imagenet_dataset.py
 
-ADD test/ test/
+# ADD test/ test/
 
-ADD main.py .
-
-ENV LD_LIBRARY_PATH /usr/lib:$LD_LIBRARY_PATH
-ENV BLAS /usr/lib/libopenblas.a
-ENV ATLAS /usr/lib/libopenblas.a
+ADD main.py main.py
 
 RUN rm -rf /tmp/*
 
-RUN echo '[global]\ndevice=cuda0\nfloatX=float32\nwintX=int32\noptimizer_including=cudnn\n\
-[cuda]\nroot=/usr/local/cuda-9.1/include\n\
-[blas]\nldflags = -lopenblas\n\
-[dnn]\nenable=True\nlibrary_path=/usr/local/cuda-9.1/lib64\ninclude_path=/usr/local/cuda-9.1/include' >> /root/.theanorc
+# RUN echo '[global]\ndevice=cuda0\nfloatX=float32\nwintX=int32\noptimizer_including=cudnn\n\
+# [cuda]\nroot=/usr/local/cuda-9.1/include\n\
+# [blas]\nldflags = -lopenblas\n\
+# [dnn]\nenable=True\nlibrary_path=/usr/local/cuda-9.1/lib64\ninclude_path=/usr/local/cuda-9.1/include' >> /root/.theanorc
 
 ENTRYPOINT ["python3","main.py"]

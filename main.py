@@ -3,5 +3,8 @@ import torch
 from core.classifier import Classifier
 
 classifier = Classifier()
+num_epochs = 50
 
-classifier.train(1)
+for i in range(num_epochs):
+    classifier.train(i)
+    classifier.test(i)

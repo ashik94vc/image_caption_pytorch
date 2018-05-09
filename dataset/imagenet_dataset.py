@@ -26,8 +26,8 @@ class ImagenetDataset(Dataset):
     def __getitem__(self, idx):
         sample_data = []
         image_data = self.dataset['data'][idx]
-        image_data = image_data.transpose(1, 2, 0)
-        image_data = Image.fromarray(image_data)
+        # image_data = image_data.transpose(1, 2, 0)
+        # image_data = Image.fromarray(image_data)
         if self.transform:
             image_data = self.transform(image_data)
         sample_data.append(image_data)

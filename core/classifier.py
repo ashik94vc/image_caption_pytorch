@@ -1,4 +1,3 @@
-import sys
 import torch
 
 from torch import nn, optim
@@ -61,11 +60,10 @@ class Classifier(object):
 
     def test(self, epoch):
         self.net.eval()
-        test_loss = 0
         correct = 0
         total = 0
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.testloader):
+            for _, (data, target) in enumerate(self.testloader):
                 data, target = data.to(self.device), target.to(self.device)
                 outputs = self.net(data)
 
@@ -73,7 +71,7 @@ class Classifier(object):
                 total += target.size(0)
                 correct += predicted.eq(target).sum().item()
         acc = 100.*correct/total
-        print("\nEpoch %d complete with test accuracy %f" % epoch,acc)
+        print("\nEpoch %d complete with test accuracy %f" % epoch, acc)
         print("Saving Model")
         state = {
             'net': self.net.state_dict(),
