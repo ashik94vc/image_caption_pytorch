@@ -71,7 +71,7 @@ class Classifier(object):
                 total += target.size(0)
                 correct += predicted.eq(target).sum().item()
         acc = 100.*correct/total
-        print("\nEpoch %d complete with test accuracy %f" % epoch, acc)
+        print("\nEpoch %d complete with test accuracy %f" % (epoch, acc))
         print("Saving Model")
         state = {
             'net': self.net.state_dict(),
