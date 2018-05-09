@@ -31,15 +31,22 @@ class Classifier(object):
         # test_dataset = ImagenetDataset(train=True, transform=test_transform)
         # self.testloader = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers=2)
         dataset = loadData("dataset/imagenet.h5")
-        imagegen = ImageDataGenerator(shear_range=0.2,zoom_range=0.2,horizontal_flip=True)
+        train_imagegen = ImageDataGenerator(
+            rescale=1./255, 
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True)
+        test_imagegen = ImageDataGenerator(
+            rescale=1./255
+        )
         train_x = dataset["train"]["data"]
         train_y = dataset["train"]["target"]
         self.train_len = len(train_x)
-        self.trainloader = imagegen.flow(train_x, train_y,batch_size=32,shuffle=True)
+        self.trainloader = train_imagegen.flow(train_x, train_y,batch_size=32,shuffle=True)
         test_x = dataset["val"]["data"]
         test_y = dataset["val"]["target"]
         self.test_len = len(test_x)
-        self.testloader = imagegen.flow(test_x, test_y,batch_size=32,shuffle=True)
+        self.testloader = test_imagegen.flow(test_x, test_y,batch_size=32,shuffle=True)
         self.classes = dataset["class_index"]
         
         self.net = ResNet(len(self.classes))
@@ -91,17 +98,21 @@ class Classifier(object):
         acc = 0
         with torch.no_grad():
             barformat = "{desc}{percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt}[{remaining} {rate_fmt} {postfix}%]"
-            pbar = tqdm(total=self.train_len, bar_format=barformat, postfix={"accuracy":acc})
+            pbar = tqdm(total=self.test_len, bar_format=barformat, postfix={"accuracy":acc})
             for _, (data, target) in enumerate(self.testloader):
-                data, target = data.to(self.device), target.to(self.device)
+                pbar.set_description("epoch {0}".format(epoch+1))
+                data, target = torch.tensor(data, dtype=torch.float32, device=self.device), torch.tensor(target, dtype=torch.int64, device=self.device)
                 outputs = self.net(data)
-
                 _, predicted = outputs.max(1)
                 total += target.size(0)
                 correct += predicted.eq(target).sum().item()
                 acc = 100.*correct/total
                 pbar.set_postfix({"accuracy":acc})
-                pbar.update(1)
+                if self.device == "cuda":
+                    if batch_idx % 50 == 0:
+                        pbar.update(50)
+                else:
+                    pbar.update(1)
         print("Saving Model...")
         state = {
             'net': self.net.state_dict(),
