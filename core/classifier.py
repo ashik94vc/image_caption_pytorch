@@ -11,7 +11,9 @@ from tqdm import tqdm
 from dataset.imagenet_dataset import ImagenetDataset
 from core.resnet import ResNet
 from core.image import ImageDataGenerator
-from core.lib import loadData
+from core.lib import loadModel
+from core.coco import CocoCaptions, collate_fn
+from core.model import ImageEncoder, CaptionDecoder
 
 
 class Classifier(object):
@@ -21,55 +23,55 @@ class Classifier(object):
 
     def __init__(self):
         
+        self.embed_size = 256
+        self.hidden_size = 512
+        self.num_layers = 1
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print("Using device %s" % self.device)
 
-        # train_dataset = ImagenetDataset(train=True, transform=train_transform)
-        # self.classes = train_dataset.class_names
-        # self.trainloader = \
-        # DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=2)
-        # test_dataset = ImagenetDataset(train=True, transform=test_transform)
-        # self.testloader = DataLoader(test_dataset, batch_size=32, shuffle=True, num_workers=2)
-        dataset = loadData("dataset/imagenet.h5")
-        train_imagegen = ImageDataGenerator(
-            rescale=1./255, 
-            shear_range=0.2,
-            zoom_range=0.2,
-            horizontal_flip=True)
-        test_imagegen = ImageDataGenerator(
-            rescale=1./255
-        )
-        train_x = dataset["train"]["data"]
-        train_y = dataset["train"]["target"]
-        self.train_len = len(train_x)
-        self.trainloader = train_imagegen.flow(train_x, train_y,batch_size=32,shuffle=True)
-        test_x = dataset["val"]["data"]
-        test_y = dataset["val"]["target"]
-        self.test_len = len(test_x)
-        self.testloader = test_imagegen.flow(test_x, test_y,batch_size=32,shuffle=True)
-        self.classes = dataset["class_index"]
-        
-        self.net = ResNet(len(self.classes))
-        self.net.to(self.device)
+        train_transform = transforms.Compose([
+            transforms.RandomCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ])
+        test_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        ])
+        vocab = loadModel('dataset/vocab.pkl')
+        self.vocab_size = len(vocab)
+        coco_train = CocoCaptions(root="dataset/coco2014/train2014", annFile="dataset/coco2014/annotations/captions_train2014.json", vocab=vocab, transform=train_transform)
+        coco_test = CocoCaptions(root="dataset/coco2014/val2014", annFile="dataset/coco2014/annotations/captions_val2014.json",vocab=vocab , transform=test_transform)
+        self.trainloader = DataLoader(dataset=coco_train, batch_size=32, shuffle=2, num_workers=2, collate_fn=collate_fn)
+        self.testloader = DataLoader(dataset=coco_test, batch_size=32, shuffle=False, num_workers=2, collate_fn=collate_fn)
+        self.encoder = ImageEncoder(self.embed_size)
+        self.decoder = CaptionDecoder(self.embed_size, self.hidden_size, self.vocab_size, self.num_layers)
+        self.encoder.to(self.device)
+        self.decoder.to(self.device)
+        self.train_len = len(coco_train)
+        self.test_len = len(coco_test)
         if self.device == 'cuda':
-            self.net = nn.DataParallel(self.net)
+            self.encoder = nn.DataParallel(self.encoder)
+            self.decoder = nn.DataParallel(self.decoder)
             cudnn.benchmark = True
 
     def train(self, epoch):
-        self.net.train()
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.SGD(self.net.parameters(), 0.001, momentum=0.9, weight_decay=5e-4)
+        params = list(self.decoder.parameters()) + list(self.encoder.linear.parameters()) + list(self.encoder.bn.parameters())
+        optimizer = optim.Adam(params, lr=0.001)
         train_loss = 0
         correct = 0
         total = 0
         acc = 0
         barformat = "{desc}{percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} {postfix[loss]}[{remaining} {rate_fmt} accuracy:{postfix[accuracy]}%]"
         pbar = tqdm(total=self.train_len, bar_format=barformat, postfix={"accuracy":acc, "loss":0, 5:0})
-        for batch_idx, (data, target) in enumerate(self.trainloader):
+        for batch_idx, (data,target,length) in enumerate(self.trainloader):
             pbar.set_description("epoch {0}".format(epoch+1))
-            data, target = torch.tensor(data, dtype=torch.float32, device=self.device), torch.tensor(target, dtype=torch.int64, device=self.device)
+            data,target = data.to(self.device), target.to(self.device)
             optimizer.zero_grad()
-            outputs = self.net(data)
+            outputs = self.encoder(data)
+            outputs = self.decoder(outputs, target, length)
             loss = criterion(outputs, target)
             loss.backward()
             optimizer.step()
@@ -101,7 +103,7 @@ class Classifier(object):
             pbar = tqdm(total=self.test_len, bar_format=barformat, postfix={"accuracy":acc})
             for _, (data, target) in enumerate(self.testloader):
                 pbar.set_description("epoch {0}".format(epoch+1))
-                data, target = torch.tensor(data, dtype=torch.float32, device=self.device), torch.tensor(target, dtype=torch.int64, device=self.device)
+                data, target = data.to(self.device), target.to(self.device)
                 outputs = self.net(data)
                 _, predicted = outputs.max(1)
                 total += target.size(0)

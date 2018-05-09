@@ -4,8 +4,11 @@
 import os
 import pickle
 from datetime import date
-
+from collections import Counter
+import nltk
 import deepdish as dd
+from pycocotools.coco import COCO
+from scripts.build_vocab import Vocabulary
 
 def __getFilePath(iternumber,date):
     filename = 'models/'+date[1]+'_'+date[0]+'_'+date[2]+'_'+str(iternumber)+'.model'

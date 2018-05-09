@@ -1,5 +1,6 @@
 import torch
 
+from scripts.build_vocab import Vocabulary
 from core.classifier import Classifier
 
 classifier = Classifier()

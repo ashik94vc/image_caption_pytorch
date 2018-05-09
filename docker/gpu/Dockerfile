@@ -63,16 +63,17 @@ RUN pip3 install --upgrade torch
 RUN pip3 install --upgrade torchvision
 RUN pip3 install --upgrade pillow
 RUN pip3 install deepdish
+RUN pip3 install tqdm
 
 WORKDIR /scene_detection
 
 RUN mkdir -p models
 RUN mkdir -p checkpoint
 
-ADD core core/
 ADD dataset/imagenet.h5 dataset/imagenet.h5
 ADD dataset/imagenet_dataset.py dataset/imagenet_dataset.py
 
+ADD core core/
 # ADD test/ test/
 
 ADD main.py main.py
