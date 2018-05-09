@@ -60,7 +60,7 @@ class Classifier(object):
         pbar = tqdm(total=self.train_len, bar_format=barformat, postfix={"accuracy":acc, "loss":0, 5:0})
         for batch_idx, (data, target) in enumerate(self.trainloader):
             pbar.set_description("epoch {0}".format(epoch+1))
-            data, target = torch.tensor(data, dtype=torch.float32), torch.tensor(target, dtype=torch.int64)
+            data, target = torch.tensor(data, dtype=torch.float32, device=self.device), torch.tensor(target, dtype=torch.int64, device=self.device)
             optimizer.zero_grad()
             outputs = self.net(data)
             loss = criterion(outputs, target)
