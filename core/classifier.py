@@ -78,4 +78,4 @@ class Classifier(object):
             'epoch': epoch,
             'accuracy': acc
         }
-        torch.save(state, '../checkpoint/checkpoint.t7')
+        torch.save(state, 'checkpoint/checkpoint.t7')
