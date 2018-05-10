@@ -27,9 +27,7 @@ class CaptionDecoder(nn.Module):
         self.linear = nn.Linear(hidden_size, vocab_size)
         
     def forward(self, features, captions, length):
-        print(captions.size())
         embeddings = self.embeddings(captions)
-        print(embeddings.size(),features.unsqueeze(1).size())
         embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
         packed = pack_padded_sequence(embeddings, length, batch_first=True)
         hiddens,_ = self.lstm(packed)

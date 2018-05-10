@@ -31,7 +31,7 @@ class Classifier(object):
         print("Using device %s" % self.device)
 
         train_transform = transforms.Compose([
-            transforms.RandomCrop(224),
+            transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
@@ -52,10 +52,10 @@ class Classifier(object):
         self.decoder.to(self.device)
         self.train_len = len(coco_train)
         self.test_len = len(coco_test)
-        if self.device == 'cuda':
-            self.encoder = nn.DataParallel(self.encoder)
-            self.decoder = nn.DataParallel(self.decoder)
-            cudnn.benchmark = True
+        # if self.device == 'cuda':
+        #     self.encoder = nn.DataParallel(self.encoder)
+        #     self.decoder = nn.DataParallel(self.decoder)
+        #     cudnn.benchmark = True
 
     def train(self, epoch):
         criterion = nn.CrossEntropyLoss()

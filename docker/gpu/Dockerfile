@@ -10,6 +10,7 @@ ENV CUDA_RUN https://developer.nvidia.com/compute/cuda/9.1/Prod/local_installers
 RUN apt-get install --no-install-recommends -y python3-dev \
    git \
    wget \
+   unzip \
    liblapack-dev \
    libopenblas-dev \
    python3-numpy \
@@ -21,6 +22,7 @@ RUN apt-get install --no-install-recommends -y python3-dev \
    python3-pip \
    python3-nose \
    python3-wheel \
+   python3-tk\
    python3-setuptools \
    kmod \
    python3-scipy
@@ -48,21 +50,23 @@ RUN pip3 install --upgrade deepdish
 RUN pip3 install --upgrade tqdm
 RUN pip3 install --upgrade pycocotools
 RUN pip3 install --upgrade nltk
-
+RUN pip3 install --upgrade matplotlib
+# RUN pip3 install --upgrade python3-tk
 
 
 WORKDIR /scene_detection
 
 RUN mkdir -p models
 RUN mkdir -p checkpoint
-RUN mkdir -p dataset/coco2014
+RUN mkdir -p dataset
 
-ADD download.sh download.sh
-RUN chmod +x download.sh
-RUN ./download.sh
+# ADD download.sh download.sh
+# RUN chmod +x download.sh
+# RUN ./download.sh
 
-ADD scripts scripts/
-RUN python3 scripts/build_vocab.py
+# ADD scripts scripts/
+# RUN python3 scripts/build_vocab.py
+ADD dataset/ dataset/vocab.pkl
 
 ADD core core/
 
