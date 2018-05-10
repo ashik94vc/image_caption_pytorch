@@ -6,7 +6,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 class ImageEncoder(nn.Module):
     def __init__(self, size):
         super(ImageEncoder, self).__init__()
-        resnet = models.resnet152(pretrained=True)
+        resnet = models.resnet50(pretrained=True)
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         self.linear = nn.Linear(resnet.fc.in_features, size)
@@ -14,7 +14,6 @@ class ImageEncoder(nn.Module):
 
     def forward(self, x):
         x = self.resnet(x)
-        x = torch.Tensor(x.data)
         x = x.view(x.size(0), -1)
         x = self.linear(x)
         x = self.bn(x)
@@ -28,8 +27,10 @@ class CaptionDecoder(nn.Module):
         self.linear = nn.Linear(hidden_size, vocab_size)
         
     def forward(self, features, captions, length):
+        print(captions.size())
         embeddings = self.embeddings(captions)
-        embeddings = self.cat((features.unsqueeze(1), embeddings), 1)
+        print(embeddings.size(),features.unsqueeze(1).size())
+        embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
         packed = pack_padded_sequence(embeddings, length, batch_first=True)
         hiddens,_ = self.lstm(packed)
         outputs = self.linear(hiddens[0])

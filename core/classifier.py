@@ -3,6 +3,7 @@ import torch
 from torch import nn, optim
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
+from torch.nn.utils.rnn import pack_padded_sequence
 
 from torchvision import transforms
 
@@ -43,7 +44,7 @@ class Classifier(object):
         self.vocab_size = len(vocab)
         coco_train = CocoCaptions(root="dataset/coco2014/train2014", annFile="dataset/coco2014/annotations/captions_train2014.json", vocab=vocab, transform=train_transform)
         coco_test = CocoCaptions(root="dataset/coco2014/val2014", annFile="dataset/coco2014/annotations/captions_val2014.json",vocab=vocab , transform=test_transform)
-        self.trainloader = DataLoader(dataset=coco_train, batch_size=32, shuffle=2, num_workers=2, collate_fn=collate_fn)
+        self.trainloader = DataLoader(dataset=coco_train, batch_size=5, shuffle=2, num_workers=2, collate_fn=collate_fn)
         self.testloader = DataLoader(dataset=coco_test, batch_size=32, shuffle=False, num_workers=2, collate_fn=collate_fn)
         self.encoder = ImageEncoder(self.embed_size)
         self.decoder = CaptionDecoder(self.embed_size, self.hidden_size, self.vocab_size, self.num_layers)
@@ -69,16 +70,17 @@ class Classifier(object):
         for batch_idx, (data,target,length) in enumerate(self.trainloader):
             pbar.set_description("epoch {0}".format(epoch+1))
             data,target = data.to(self.device), target.to(self.device)
+            targets = pack_padded_sequence(target, length, batch_first=True)[0]
             optimizer.zero_grad()
             outputs = self.encoder(data)
             outputs = self.decoder(outputs, target, length)
-            loss = criterion(outputs, target)
+            loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
             _, predicted = outputs.max(1)
-            total += target.size(0)
-            correct += predicted.eq(target).sum().item()
+            total += targets.size(0)
+            correct += predicted.eq(targets).sum().item()
             acc = 100.0*correct/total
             pbar.postfix["accuracy"] = "{0:.2f}".format(acc)
             pbar.postfix["loss"] = "{0:10.3f}".format(train_loss)
@@ -94,30 +96,27 @@ class Classifier(object):
         print("\nEpoch %d complete... " % epoch)
 
     def test(self, epoch):
-        self.net.eval()
         correct = 0
         total = 0
         acc = 0
         with torch.no_grad():
             barformat = "{desc}{percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt}[{remaining} {rate_fmt} {postfix}%]"
             pbar = tqdm(total=self.test_len, bar_format=barformat, postfix={"accuracy":acc})
-            for _, (data, target) in enumerate(self.testloader):
+            for _, (data, target, length) in enumerate(self.testloader):
                 pbar.set_description("epoch {0}".format(epoch+1))
-                data, target = data.to(self.device), target.to(self.device)
-                outputs = self.net(data)
+                data,target = data.to(self.device), target.to(self.device)
+                targets = pack_padded_sequence(target, length, batch_first=True)[0]
+                outputs = self.encoder(data)
+                outputs = self.decoder(outputs, target, length)
                 _, predicted = outputs.max(1)
-                total += target.size(0)
-                correct += predicted.eq(target).sum().item()
-                acc = 100.*correct/total
-                pbar.set_postfix({"accuracy":acc})
-                if self.device == "cuda":
-                    if batch_idx % 50 == 0:
-                        pbar.update(50)
-                else:
-                    pbar.update(1)
+                total += targets.size(0)
+                correct += predicted.eq(targets).sum().item()
+                acc = 100.0*correct/total
+                pbar.postfix["accuracy"] = "{0:.2f}".format(acc)
         print("Saving Model...")
         state = {
-            'net': self.net.state_dict(),
+            'encoder': self.encoder.state_dict(),
+            'decoder': self.decoder.state_dict(),
             'epoch': epoch,
             'accuracy': acc
         }
