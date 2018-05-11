@@ -76,6 +76,7 @@ class Classifier(object):
         for batch_idx, (data,target,length) in enumerate(self.trainloader):
             pbar.set_description("epoch {0}".format(epoch+1))
             print(sys.getsizeof(data))
+            print(sys.getsizeof(self.encoder))
             data,target = data.to(self.device), target.to(self.device)
             targets = pack_padded_sequence(target, length, batch_first=True)[0]
             optimizer.zero_grad()
