@@ -47,8 +47,8 @@ class Classifier(object):
         self.vocab_size = len(vocab)
         coco_train = CocoCaptions(root="dataset/coco2014/train2014", annFile="dataset/coco2014/annotations/captions_train2014.json", vocab=vocab, transform=train_transform)
         coco_test = CocoCaptions(root="dataset/coco2014/val2014", annFile="dataset/coco2014/annotations/captions_val2014.json",vocab=vocab , transform=test_transform)
-        self.trainloader = DataLoader(dataset=coco_train, batch_size=32, shuffle=True, num_workers=2, collate_fn=collate_fn)
-        self.testloader = DataLoader(dataset=coco_test, batch_size=32, shuffle=False, num_workers=2, collate_fn=collate_fn)
+        self.trainloader = DataLoader(dataset=coco_train, batch_size=32, shuffle=True, num_workers=4, collate_fn=collate_fn)
+        self.testloader = DataLoader(dataset=coco_test, batch_size=32, shuffle=False, num_workers=4, collate_fn=collate_fn)
         self.encoder = ImageEncoder(self.embed_size)
         self.decoder = CaptionDecoder(self.embed_size, self.hidden_size, self.vocab_size, self.num_layers)
         self.encoder.to(self.device)
@@ -66,7 +66,7 @@ class Classifier(object):
     def train(self, epoch):
         criterion = nn.CrossEntropyLoss()
         params = list(self.decoder.parameters()) + list(self.encoder.linear.parameters()) + list(self.encoder.bn.parameters())
-        optimizer = optim.Adam(params, lr=0.001)
+        optimizer = optim.Adagrad(params, lr=1e-3)
         train_loss = 0
         correct = 0
         total = 0
