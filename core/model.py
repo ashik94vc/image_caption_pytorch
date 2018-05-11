@@ -7,14 +7,13 @@ from torch.nn.utils.rnn import pack_padded_sequence
 class ImageEncoder(nn.Module):
     def __init__(self, size):
         super(ImageEncoder, self).__init__()
-        resnet = models.inception_v3(pretrained=True)
+        resnet = models.resnet152(pretrained=True)
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         self.linear = nn.Linear(resnet.fc.in_features, size)
         self.bn = nn.BatchNorm1d(size, momentum=0.01)
 
     def forward(self, x):
-        print(sys.getsizeof(self.resnet))
         x = self.resnet(x)
         x = x.view(x.size(0), -1)
         x = self.linear(x)

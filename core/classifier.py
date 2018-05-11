@@ -33,7 +33,7 @@ class Classifier(object):
         print("Using device %s" % self.device)
 
         train_transform = transforms.Compose([
-            transforms.Resize((299,299)),
+            transforms.RandomCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
@@ -47,8 +47,8 @@ class Classifier(object):
         self.vocab_size = len(vocab)
         coco_train = CocoCaptions(root="dataset/coco2014/train2014", annFile="dataset/coco2014/annotations/captions_train2014.json", vocab=vocab, transform=train_transform)
         coco_test = CocoCaptions(root="dataset/coco2014/val2014", annFile="dataset/coco2014/annotations/captions_val2014.json",vocab=vocab , transform=test_transform)
-        self.trainloader = DataLoader(dataset=coco_train, batch_size=10, shuffle=True, num_workers=2, collate_fn=collate_fn)
-        self.testloader = DataLoader(dataset=coco_test, batch_size=10, shuffle=False, num_workers=2, collate_fn=collate_fn)
+        self.trainloader = DataLoader(dataset=coco_train, batch_size=32, shuffle=True, num_workers=2, collate_fn=collate_fn)
+        self.testloader = DataLoader(dataset=coco_test, batch_size=32, shuffle=False, num_workers=2, collate_fn=collate_fn)
         self.encoder = ImageEncoder(self.embed_size)
         self.decoder = CaptionDecoder(self.embed_size, self.hidden_size, self.vocab_size, self.num_layers)
         self.encoder.to(self.device)
@@ -75,14 +75,11 @@ class Classifier(object):
         pbar = tqdm(total=self.train_len, bar_format=barformat, postfix={"accuracy":acc, "loss":0, 5:0})
         for batch_idx, (data,target,length) in enumerate(self.trainloader):
             pbar.set_description("epoch {0}".format(epoch+1))
-            print(sys.getsizeof(data))
-            print(sys.getsizeof(self.encoder))
             data,target = data.to(self.device), target.to(self.device)
             targets = pack_padded_sequence(target, length, batch_first=True)[0]
             self.encoder.zero_grad()
             self.decoder.zero_grad()
             outputs = self.encoder(data)
-            print(outputs)
             outputs = self.decoder(outputs, target, length)
             loss = criterion(outputs, targets)
             loss.backward()
