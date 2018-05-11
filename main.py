@@ -27,8 +27,15 @@ if args.load:
     #     encoder_params = pickle.load(f)
     # with open(decoder_path) as f:
     #     decoder_params = pickle.load(f)
-    classifier = Classifier(encoder_path, decoder_path)
-    result = classifier.sample(sample_path)
-    print(result)
+    if not decoder_path:
+        classifier = Classifier(encoder_path, decoder_path)
+        num_epochs = 10
+        for i in range(num_epochs):
+            classifier.train_decoder(i)
+            classifier.test(i)
+    else:
+        classifier = Classifier(encoder_path, decoder_path)
+        result = classifier.sample(sample_path)
+        print(result)
 else:
     train_model()

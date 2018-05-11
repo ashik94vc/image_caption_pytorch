@@ -28,7 +28,7 @@ class Classifier(object):
         
         self.embed_size = 256
         self.hidden_size = 512
-        self.num_layers = 1
+        self.num_layers = 4
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print("Using device %s" % self.device)
 
@@ -130,6 +130,45 @@ class Classifier(object):
             'accuracy': acc
         }
         torch.save(state, 'checkpoint/checkpoint.t7')
+        
+    def train_decoder(self, epoch):
+        criterion = nn.CrossEntropyLoss()
+        # params = list(self.decoder.parameters()) + list(self.encoder.linear.parameters()) + list(self.encoder.bn.parameters())
+        optimizer = optim.Adagrad(self.decoder.parameters(), lr=1e-3)
+        train_loss = 0
+        correct = 0
+        total = 0
+        self.encoder.eval()
+        acc = 0
+        barformat = "{desc}{percentage:3.0f}%|{bar}|{n_fmt}/{total_fmt} {postfix[loss]}[{remaining} {rate_fmt} accuracy:{postfix[accuracy]}%]"
+        pbar = tqdm(total=self.train_len, bar_format=barformat, postfix={"accuracy":acc, "loss":0, 5:0})
+        for batch_idx, (data,target,length) in enumerate(self.trainloader):
+            pbar.set_description("epoch {0}".format(epoch+1))
+            data,target = data.to(self.device), target.to(self.device)
+            targets = pack_padded_sequence(target, length, batch_first=True)[0]
+            self.decoder.zero_grad()
+            outputs = self.encoder(data)
+            outputs = self.decoder(outputs, target, length)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += targets.size(0)
+            correct += predicted.eq(targets).sum().item()
+            acc = 100.0*correct/total
+            pbar.postfix["accuracy"] = "{0:.2f}".format(acc)
+            pbar.postfix["loss"] = "{0:10.3f}".format(train_loss)
+            if self.device == "cuda":
+                if batch_idx % 50 == 0:
+                    pbar.update(50)
+            else:
+                pbar.update(1)
+            if batch_idx >= self.train_len:
+                break
+            # print(batch_idx, train_loss)
+
+        print("\nEpoch %d complete... " % epoch)
 
     def sample(self, image):
         toTensor = transforms.ToTensor()
