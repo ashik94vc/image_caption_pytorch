@@ -33,6 +33,7 @@ class Classifier(object):
         print("Using device %s" % self.device)
 
         train_transform = transforms.Compose([
+            transforms.Resize(256),
             transforms.RandomCrop(224),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
