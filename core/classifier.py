@@ -9,6 +9,8 @@ from torchvision import transforms
 
 from tqdm import tqdm
 
+from PIL import Image
+
 from dataset.imagenet_dataset import ImagenetDataset
 from core.resnet import ResNet
 from core.image import ImageDataGenerator
@@ -22,7 +24,7 @@ class Classifier(object):
     Classifier Wrapper to Train Data
     """
 
-    def __init__(self):
+    def __init__(self, encoder_params=None, decoder_params=None):
         
         self.embed_size = 256
         self.hidden_size = 512
@@ -31,7 +33,7 @@ class Classifier(object):
         print("Using device %s" % self.device)
 
         train_transform = transforms.Compose([
-            transforms.RandomResizedCrop(224),
+            transforms.Resize((299,299)),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
@@ -41,15 +43,19 @@ class Classifier(object):
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         ])
         vocab = loadModel('dataset/vocab.pkl')
+        self.vocab = vocab
         self.vocab_size = len(vocab)
         coco_train = CocoCaptions(root="dataset/coco2014/train2014", annFile="dataset/coco2014/annotations/captions_train2014.json", vocab=vocab, transform=train_transform)
         coco_test = CocoCaptions(root="dataset/coco2014/val2014", annFile="dataset/coco2014/annotations/captions_val2014.json",vocab=vocab , transform=test_transform)
-        self.trainloader = DataLoader(dataset=coco_train, batch_size=5, shuffle=2, num_workers=2, collate_fn=collate_fn)
+        self.trainloader = DataLoader(dataset=coco_train, batch_size=32, shuffle=True, num_workers=2, collate_fn=collate_fn)
         self.testloader = DataLoader(dataset=coco_test, batch_size=32, shuffle=False, num_workers=2, collate_fn=collate_fn)
         self.encoder = ImageEncoder(self.embed_size)
         self.decoder = CaptionDecoder(self.embed_size, self.hidden_size, self.vocab_size, self.num_layers)
         self.encoder.to(self.device)
         self.decoder.to(self.device)
+        if encoder_params and decoder_params:
+            self.encoder.load_state_dict(torch.load(encoder_params))
+            self.decoder.load_state_dict(torch.load(decoder_params))
         self.train_len = len(coco_train)
         self.test_len = len(coco_test)
         # if self.device == 'cuda':
@@ -121,3 +127,22 @@ class Classifier(object):
             'accuracy': acc
         }
         torch.save(state, 'checkpoint/checkpoint.t7')
+
+    def sample(self, image):
+        toTensor = transforms.ToTensor()
+        input_image = toTensor(Image.open(image).resize([224,224], Image.LANCZOS))
+        input_image = input_image.unsqueeze(0)
+        self.encoder.eval()
+        output = self.encoder(input_image)
+        sampled_ids = self.decoder.sample(output)
+        sampled_ids = sampled_ids[0].cpu().numpy()
+        sampled_caption = []
+        for word_id in sampled_ids:
+            word = self.vocab.idx2word[word_id]
+            if word != '<start>' and word != '<end>':
+                sampled_caption.append(word)
+            if word == '<end>':
+                break
+        print(' '.join(sampled_caption))
+        
+            

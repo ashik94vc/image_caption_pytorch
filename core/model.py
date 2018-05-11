@@ -6,7 +6,7 @@ from torch.nn.utils.rnn import pack_padded_sequence
 class ImageEncoder(nn.Module):
     def __init__(self, size):
         super(ImageEncoder, self).__init__()
-        resnet = models.resnet50(pretrained=True)
+        resnet = models.inception_v3(pretrained=True)
         modules = list(resnet.children())[:-1]
         self.resnet = nn.Sequential(*modules)
         self.linear = nn.Linear(resnet.fc.in_features, size)
@@ -22,12 +22,12 @@ class ImageEncoder(nn.Module):
 class CaptionDecoder(nn.Module):
     def __init__(self, size, hidden_size, vocab_size, num_layers):
         super(CaptionDecoder, self).__init__()
-        self.embeddings = nn.Embedding(vocab_size, size)
+        self.embed = nn.Embedding(vocab_size, size)
         self.lstm = nn.LSTM(size, hidden_size, num_layers, batch_first=True)
         self.linear = nn.Linear(hidden_size, vocab_size)
         
     def forward(self, features, captions, length):
-        embeddings = self.embeddings(captions)
+        embeddings = self.embed(captions)
         embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
         packed = pack_padded_sequence(embeddings, length, batch_first=True)
         hiddens,_ = self.lstm(packed)
@@ -40,9 +40,9 @@ class CaptionDecoder(nn.Module):
         for i in range(20):                                      # maximum sampling length
             hiddens, states = self.lstm(inputs, states)          # (batch_size, 1, hidden_size), 
             outputs = self.linear(hiddens.squeeze(1))            # (batch_size, vocab_size)
-            predicted = outputs.max(1)[1]
+            _,predicted = outputs.max(1)
             sampled_ids.append(predicted)
             inputs = self.embed(predicted)
             inputs = inputs.unsqueeze(1)                         # (batch_size, 1, embed_size)
-        sampled_ids = torch.cat(sampled_ids, 1)                  # (batch_size, 20)
-        return sampled_ids.squeeze()
+        sampled_ids = torch.stack(sampled_ids, 1)                  # (batch_size, 20)
+        return sampled_ids

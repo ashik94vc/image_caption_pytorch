@@ -7,3 +7,5 @@ dataset/coco2014/
 *.h5
 *.t7
 *.pyc
+*.bak
+model/
