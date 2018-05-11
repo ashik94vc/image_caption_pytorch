@@ -1,4 +1,5 @@
 import torch
+import sys
 from torch import nn
 from torchvision import models
 from torch.nn.utils.rnn import pack_padded_sequence
@@ -13,6 +14,7 @@ class ImageEncoder(nn.Module):
         self.bn = nn.BatchNorm1d(size, momentum=0.01)
 
     def forward(self, x):
+        print(sys.getsizeof(self.resnet))
         x = self.resnet(x)
         x = x.view(x.size(0), -1)
         x = self.linear(x)

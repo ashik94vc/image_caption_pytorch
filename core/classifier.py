@@ -79,8 +79,10 @@ class Classifier(object):
             print(sys.getsizeof(self.encoder))
             data,target = data.to(self.device), target.to(self.device)
             targets = pack_padded_sequence(target, length, batch_first=True)[0]
-            optimizer.zero_grad()
+            self.encoder.zero_grad()
+            self.decoder.zero_grad()
             outputs = self.encoder(data)
+            print(outputs)
             outputs = self.decoder(outputs, target, length)
             loss = criterion(outputs, targets)
             loss.backward()
