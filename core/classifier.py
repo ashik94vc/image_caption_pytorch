@@ -28,7 +28,7 @@ class Classifier(object):
         
         self.embed_size = 256
         self.hidden_size = 512
-        self.num_layers = 4
+        self.num_layers = 1
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         print("Using device %s" % self.device)
 
